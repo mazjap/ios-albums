@@ -9,37 +9,76 @@
 import Foundation
 
 struct Album: Codable {
+    enum PokemonKeys: String, CodingKey {
+        case name
+        case abilities
+        
+        enum AbilityContentKeys: String, CodingKey {
+            case ability
+            
+            enum AbilityNameKeys: String, CodingKey {
+                case name
+            }
+        }
+    }
     enum AlbumKeys: String, CodingKey {
         case artist
         case genres
         case name
-        case song
+        case songs
+        case id
+        case coverArt
     }
     
-    let artist: String
-    let genres: [String]
-    let name: String
-    
-    let songs: [Song]
+    var artist: String
+    var genres: [String]
+    var name: String
+    var id: UUID
+    var songs: [Song]
+    var coverArt: [String]
     
     init(decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: AlbumKeys.self)
         artist = try container.decode(String.self, forKey: .artist)
         name = try container.decode(String.self, forKey: .name)
-        
-        var abilitiesContainer = try container.nestedUnkeyedContainer(forKey: .abilities)
-        var abilityNames: [String] = []
-        while !abilitiesContainer.isAtEnd {
-            let abilityContentContainer = try abilitiesContainer.nestedContainer(keyedBy: PokemonKeys.AbilityContentKeys.self)
-            let abilityNameContainer = try abilityContentContainer.nestedContainer(keyedBy: PokemonKeys.AbilityContentKeys.AbilityNameKeys.self, forKey: .ability)
-            let abilityName = try abilityNameContainer.decode(String.self, forKey: .name)
-            abilityNames.append(abilityName)
-        }
-        abilities = abilityNames
+        genres = try container.decode([String].self, forKey: .genres)
+        let idString = try container.decode(String.self, forKey: .id)
+        id = UUID(uuidString: idString) ?? UUID()
+        songs = try container.decode([Song].self, forKey: .songs)
+        coverArt = ["hehe"]
     }
 }
 
 struct Song: Codable {
-    let name: String
-    let duration: Int
+    enum SongKeys: String, CodingKey {
+        
+        enum NameKeys: String, CodingKey { case name }
+        enum DurationKeys: String, CodingKey { case duration }
+        
+        case name
+        case duration
+        case id
+    }
+    
+    var name: String
+    var duration: Int
+    var id: UUID
+    
+    init(decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: SongKeys.self)
+        let idString = try container.decode(String.self, forKey: .id)
+        
+        var nameContentContainer = try container.nestedUnkeyedContainer(forKey: .name)
+        var durationContentContainer = try container.nestedUnkeyedContainer(forKey: .duration)
+        
+        let durationString = try durationContentContainer.decode(String.self)
+        let colonIndex = durationString.firstIndex(of: ":")
+        guard let firstIndex = colonIndex,
+            let min = Int(String(durationString[..<firstIndex])),
+            let sec = Int(String(durationString[firstIndex...])) else { return }
+                
+        name = try nameContentContainer.decode(String.self)
+        id = UUID(uuidString: idString) ?? UUID()
+        duration = min * 60 + sec
+    }
 }
